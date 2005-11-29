@@ -20,8 +20,7 @@ repairCluster(cl, nodes, ..., options = defaultClusterOptions)
   Functions to add, remove and restart nodes of a snowFT cluster.
 }
 \details{
-  \code{addtoCluster} adds new nodes to cluster \code{cl} and loads
-snowFT on them. For \code{"PVM"}
+  \code{addtoCluster} adds new nodes to cluster \code{cl}. For \code{"PVM"}
   cluster the \code{spec} argument should be an integer
   specifying the number of nodes to create.
 
@@ -44,8 +43,6 @@ clusterApply(cl, 1:5, get("+"), 3)
 cl <- addtoCluster(cl,3)
 fail<-findFailedNodes(cl)
 cl<-repairCluster(cl,fail[,1])
-clusterApply(cl, 1:8, get("+"), 3)
-stopCluster(cl)
 }
 }
 \keyword{programming}

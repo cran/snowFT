@@ -7,7 +7,7 @@ makeClusterFT(spec, type = getClusterOption("type"), ...)
 \arguments{
   \item{spec}{Cluster specification.}
   \item{type}{Character string that specifies cluster type. Only \code{type="PVM"} supported.}
-  \item{...}{Cluster option specifications.}
+  \item{...}{cluster option specifications}
 }
 \description{
   Functions to start a snowFT cluster and to set default cluster
@@ -20,16 +20,12 @@ makeClusterFT(spec, type = getClusterOption("type"), ...)
   specifying the number of slave nodes to create. See \code{setDefaultClusterOptions()} of the snow package for setting cluster options.
 
   The cluster should be stopped by \code{stopCluster} of the snow package.
-
-Note that on a snowFT cluster all snow functions can be applied, whereas on a
-cluster created by \code{makeCluster} of the snow package the snowFT functions will not work unless
-the snowFT library is loaded on all nodes. 
 }
 \seealso{\code{snow-startstop} functions of the snow package.} 
 \examples{
   \dontrun{
 cl <- makeClusterFT(5)
-res <- clusterApplyFT(cl, 1:10, get("+"), ...=3)
+res <- clusterApplyFT(cl, 1:10, get("+"), 3)
 stopCluster(res[[2]])
 print(res[[1]])
   }

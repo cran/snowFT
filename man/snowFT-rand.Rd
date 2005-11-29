@@ -54,8 +54,8 @@ bellow).}
   \dontrun{
 cl <- makeClusterFT(3)
 r<-10
-clusterSetupRNG.FT(cl, type="RNGstream", streamper="replicate",n=r, seed=rep(1,6))
-res<-clusterApplyFT(cl,rep(5,10),rnorm,gentype="RNGstream")
+clusterSetupRNG.FT(cl, streamper="replicate",n=r, seed=rep(1,6))
+res<-clusterApplyFT(cl,rep(5,10),rnorm)
 stopCluster(res[[2]])
 print(res[[1]])
   }

@@ -52,16 +52,16 @@ clusterEvalQpart <- function(cl, nodes, expr)
 recvOneResultFT <- function(cl,type='b',time=0) {
     v <- recvOneDataFT(cl,type,time)
     if (length(v) <= 0) return (NULL)
-    list(value = v$value$value, node=v$node)
+    return(list(value = v$value$value, node=v$node))
 }
 
-clusterApplyFT <- function(cl, x, fun, ..., initfun = NULL, exitfun=NULL,
+clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
                              printfun=NULL, printargs=NULL,
                              printrepl=max(length(x)/10,1),
                              gentype="None", seed=rep(123456,6),
                              prngkind="default", para=0,
                              mngtfiles=c(".clustersize",".proc",".proc_fail"),
-                             ft_verbose=FALSE) {
+                             ft_verbose=FALSE, ...) {
 
 # This function is a combination of clusterApplyLB and FPSS
 # (Framework for parallel statistical simulations), written by
@@ -73,10 +73,10 @@ clusterApplyFT <- function(cl, x, fun, ..., initfun = NULL, exitfun=NULL,
 #  - reproducible results - each replication is assigned to one
 #                           particular RNG stream. Thus, proceeding
 #                           in any order will give the same results.
-#  - dynamic cluster resizing - the function reads the
+#  - dynamic adaptation of degree of parallelism - the function reads the
 #                 desired number of nodes from a file (that can be changed
 #                 any time) and increases or decreases the number of nodes.
-#  - keeping track about the computation status - the replication numbers
+#  - keeping track about the computat`ion status - the replication numbers
 #                 that are currently processed and that failed are
 #                 written into files.
 #  - efficient administration - all the management work is done only
@@ -240,7 +240,7 @@ clusterApplyFT <- function(cl, x, fun, ..., initfun = NULL, exitfun=NULL,
           val[d$value$index] <- list(d$value$value)
           node <- GetNodefromReplic(cl,d$value$index)
           if (node > 0) {
-            if (length(cl) > p) { # decrease the grad of parallelism
+            if (length(cl) > p) { # decrease the degree of parallelism
               if (!is.null(exitfun))
                 clusterCallpart(cl,node,exitfun)
               clall<-removecl(clall,c(cl[[node]]$replic))
@@ -268,20 +268,19 @@ clusterApplyFT <- function(cl, x, fun, ..., initfun = NULL, exitfun=NULL,
                                         # to the next run
     }
     if (length(frep) > 0)
-      cat("\nWarning: Following replications failed: ", frep, "\n") # even in the third run
+      cat("\nWarning: Some replications failed!\n") # even in the third run
   }
   return(list(val,cl))
 }
 
-performParallel <- function(count, x, fun, ..., initfun = NULL, 
-			exitfun =NULL,
+performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
                             printfun=NULL,printargs=NULL,
                             printrepl=max(length(x)/10,1),
                             cltype = getClusterOption("type"),
                             gentype="RNGstream", seed=rep(123456,6),
                             prngkind="default", para=0, 
 			    mngtfiles=c(".clustersize",".proc",".proc_fail"),
-                            ft_verbose=FALSE) {
+                            ft_verbose=FALSE, ...) {
 
   RNGnames <- c("RNGstream", "SPRNG", "None")
   rng <- pmatch (gentype, RNGnames)
@@ -296,7 +295,7 @@ performParallel <- function(count, x, fun, ..., initfun = NULL,
      cat("\nFunction performParallel:\n")
      cat("   creating cluster ...\n")
   }
-  cl <- makeClusterFT(count, cltype)
+  cl <- makeClusterFT(min(count,length(x)), cltype)
 
   if (!is.null(initfun)) {
     if (ft_verbose) 
@@ -316,12 +315,12 @@ performParallel <- function(count, x, fun, ..., initfun = NULL,
   if (ft_verbose) 
      cat("   calling clusterApplyFT ...\n")
  
-  res <- clusterApplyFT (cl, x, fun, ..., initfun=initfun, exitfun=exitfun,
+  res <- clusterApplyFT (cl, x, fun, initfun=initfun, exitfun=exitfun,
                            printfun=printfun, printargs=printargs,
                            printrepl=printrepl, gentype=gentype,
                            seed=seed, prngkind=prngkind,
                            para=para, mngtfiles=mngtfiles, 
-			   ft_verbose=ft_verbose)
+			   ft_verbose=ft_verbose, ...)
   if (ft_verbose) 
      cat("   clusterApplyFT finished.\n")
   val<-res[[1]]

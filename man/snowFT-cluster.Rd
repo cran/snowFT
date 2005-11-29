@@ -5,12 +5,12 @@
 \alias{clusterCallpart}
 \alias{clusterEvalQpart}
 \usage{
-clusterApplyFT(cl, x, fun, ..., initfun, exitfun, printfun, printargs,
-               printrepl, gentype, seed, prngkind, para, mngtfiles, ft_verbose)
+clusterApplyFT(cl, x, fun, initfun, exitfun, printfun, printargs, printrepl,
+               gentype, seed, prngkind, para, mngtfiles, ft_verbose, ...)
 
-performParallel(count, x, fun, ..., initfun, exitfun, printfun, printargs,
+performParallel(count, x, fun, initfun, exitfun, printfun, printargs,
                 printrepl, cltype, gentype, seed, prngkind, para, mngtfiles,
-                ft_verbose)
+                ft_verbose, ...)
 
 clusterCallpart(cl, nodes, fun, ...)
 clusterEvalQpart(cl, nodes, expr)
@@ -22,7 +22,6 @@ clusterEvalQpart(cl, nodes, expr)
   \item{x}{Array whose length determines how many times \code{fun} is to
   be called. \code{x[i]} is passed to \code{fun} (as its first argument)
   at $i$th call.}
-  \item{...}{Additional arguments to pass to function \code{fun}.}
 \item{initfun}{Function or character string naming a
 function with no
   arguments that is to
@@ -59,9 +58,10 @@ the non-finished
   already exist, their content
   is overwritten. Default:
   \code{c(".clustersize", ".proc", ".proc_fail")}.}
-  \item{ft_verbose}{If TRUE, debugging messages are sent to standard output. Default: FALSE}
+  \item{ft_verbose}{If TRUE, debugging messages are sent to standard output.}
   \item{expr}{Expression to evaluate.}
   \item{nodes}{Indices of cluster nodes.}
+  \item{...}{Additional arguments to pass to function \code{fun}.}
 }
 \description{
   Functions extending the collection of cluster-level functions of the
@@ -78,13 +78,12 @@ resizing. The master process searches for failed nodes in its
   repaired. All failed computations are restarted (in three additional
   runs) after the replication
   loop is finished, and hence the user should not notice any
-  interruptions. If there are failed replicates in the last run, a
-warning is printed out.
+  interruptions.
 
- The file \code{mngtfiles[1]} is initially written by \code{clusterApplyFT}
+ The file \code{mngtfiles[1]} is initially written by the master
   prior to the computation and it contains a single integer value corresponding
   to the number of cluster nodes. Then the value can be arbitrarily changed by
-  the user (but should remain in the same format). The function reads the
+  the user (but should remain in the same format). The master reads the
   file  in its waiting time. If the value in this file is larger than
   the current
   cluster size, new nodes are created and the computation is expanded on
@@ -126,9 +125,6 @@ number). Thus, the final results are reproducible.
   cluster object.
 
   \code{performParallel} returns a list of results.
-
-\code{clusterCallpart} and \code{clusterEvalQpart} return a list
-  of results.
 }
 \examples{
   \dontrun{

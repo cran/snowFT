@@ -35,10 +35,8 @@ addtoCluster.PVMcluster <- function(cl, spec, ...,
   newcl <- vector("list",n+spec)
   for (i in seq(along=cl))
     newcl[[i]] <- cl[[i]]
-  for (i in (n+1):(n+spec)) {
+  for (i in (n+1):(n+spec))
     newcl[[i]] <- newPVMnode(options = options)
-    clusterEvalQpart(newcl,i,library(snowFT))
-  }	
   class(newcl) <- c("PVMcluster")
   newcl
 }
@@ -67,6 +65,7 @@ repairCluster.PVMcluster <- function(cl, nodes, ...,
       stopNode(cl[[i]])
       newcl[[i]] <- newPVMnode(options = options)
       clusterEvalQpart(newcl,i,library(snowFT))
+      newcl[[i]]$replic <- 0
     } else 
     newcl[[i]] <- cl[[i]]
   }
