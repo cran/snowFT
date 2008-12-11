@@ -29,19 +29,19 @@
 \alias{updatecl}
 \alias{writetomngtfile}
 \usage{
-getNodeID.SOCKnode(node)
-processStatus.SOCKnode(node)
+\method{getNodeID}{SOCKnode}(node)
+\method{processStatus}{SOCKnode}(node)
 
-addtoCluster.PVMcluster(cl, spec, ..., options = defaultClusterOptions)
-getNodeID.PVMnode(node)
-processStatus.PVMnode(node)
-removefromCluster.PVMcluster(cl, nodes)
-repairCluster.PVMcluster(cl, nodes, ..., options = defaultClusterOptions)
+\method{addtoCluster}{PVMcluster}(cl, spec, ..., options = defaultClusterOptions)
+\method{getNodeID}{PVMnode}(node)
+\method{processStatus}{PVMnode}(node)
+\method{removefromCluster}{PVMcluster}(cl, nodes)
+\method{repairCluster}{PVMcluster}(cl, nodes, ..., options = defaultClusterOptions)
 
-addtoCluster.MPIcluster(cl, spec, ..., options = defaultClusterOptions)
-getNodeID.MPInode(node)
-processStatus.MPInode(node)
-removefromCluster.MPIcluster(cl, nodes)
+\method{addtoCluster}{MPIcluster}(cl, spec, ..., options = defaultClusterOptions)
+\method{getNodeID}{MPInode}(node)
+\method{processStatus}{MPInode}(node)
+\method{removefromCluster}{MPIcluster}(cl, nodes)
 
 initStream(type="RNGstream", name, ...)
 freeStream(type="RNGstream", oldrng)
@@ -52,8 +52,8 @@ initRNGstreamNodeRepli(seed, n)
 
 recvOneDataFT(cl, type, time)
 recvOneResultFT(cl, type='b',time=0)
-recvOneDataFT.MPIcluster(cl, type='b',time=0)
-recvOneDataFT.PVMcluster(cl, type='b',time=0)
+\method{recvOneDataFT}{MPIcluster}(cl, type='b',time=0)
+\method{recvOneDataFT}{PVMcluster}(cl, type='b',time=0)
 
 GetNodefromReplic(cl,replic)
 combinecl(oldcl, add)

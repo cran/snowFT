@@ -37,6 +37,7 @@ addtoCluster.PVMcluster <- function(cl, spec, ...,
     newcl[[i]] <- cl[[i]]
   for (i in (n+1):(n+spec))
     newcl[[i]] <- newPVMnode(options = options)
+    newcl[[i]]$replic <- 0
   class(newcl) <- c("PVMcluster")
   newcl
 }

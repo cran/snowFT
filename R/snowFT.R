@@ -83,7 +83,7 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
 #                 when there is no message arrived and thus nothing
 #                 else to do.
 
-  if (is.na(pmatch(attr(cl,"class"), "PVMcluster"))) {
+  if (all(is.na(pmatch(attr(cl,"class"), "PVMcluster")))) {
     cat("\nThe function clusterApplyFT can be used only with PVM interface!\n")
     return(list(NULL,cl))
   }
@@ -216,7 +216,7 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
               if (manage[3])
                   # write failed replications into a file
                 write(frep,mngtfiles[3])
-              if (newp > p) { # increase the grad of parallelism
+              if (newp > p) { # increase the degree of parallelism
                 cl<-addtoCluster(cl, newp-p)
                 if (!is.null(initfun))
                   clusterCallpart(cl,(p+1):newp,initfun)
