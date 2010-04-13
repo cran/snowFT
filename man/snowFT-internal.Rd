@@ -12,13 +12,15 @@
 \alias{addtoCluster.MPIcluster}
 \alias{addtoCluster.PVMcluster}
 \alias{checkSprngNode} 
+\alias{checkSPRNG}
 \alias{clusterCheckSPRNG} 
 \alias{combinecl} 
 \alias{getNodeID}
 \alias{getNodeID.MPInode}
 \alias{getNodeID.PVMnode}
 \alias{getNodeID.SOCKnode}
-\alias{initRNGstreamNodeRepli} 
+\alias{initRNGstreamNodeRepli}
+\alias{performSequential} 
 \alias{processStatus.MPInode} 
 \alias{processStatus.PVMnode}
 \alias{processStatus.SOCKnode}

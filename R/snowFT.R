@@ -273,14 +273,85 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
   return(list(val,cl))
 }
 
+performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
+                            printfun=NULL,printargs=NULL,
+                            printrepl=max(length(x)/10,1),
+                            cltype = getClusterOption("type"),
+                            gentype="RNGstream", seed=sample(1:9999999,6),
+                            prngkind="default", para=0,
+                            ft_verbose=FALSE, ...) {
+  RNGnames <- c("RNGstream", "SPRNG", "None")
+  rng <- pmatch (gentype, RNGnames)
+  if (is.na(rng))
+    stop(paste("'", type,
+               "' is not a valid choice. Choose 'RNGstream', 'SPRNG' or 'None'.",
+               sep = ""))
+  gentype <- RNGnames[rng]
+  n <- length(x)
+  if (ft_verbose) {
+     cat("\nFunction performSequential:\n")
+  }
+  if (!is.null(initfun)) {
+    if (ft_verbose) 
+        cat("   calling initfun ...\n")
+    initfun()
+  }
+
+  if (RNGnames[rng] != "None") {
+    if (ft_verbose) { 
+        cat("   initializing RNG ...\n")
+	cat("     gentype:",gentype,"\n")
+        cat("     seed:   ",seed,"\n")
+    }
+    if (rng == 1) {
+        invisible(initRNGstreamNodeRepli(seed=seed, n=n))
+    } else {
+	invisible(checkSPRNG(prngkind=prngkind))
+    }
+  } else {
+    if (ft_verbose) 
+        cat("   no RNG initialized\n")
+  }
+
+  # run the function sequentially in a loop
+  if (ft_verbose)
+    cat("   process fun in a loop ...\n")
+
+  results = list()
+  val <- vector("list", n)
+  for (repl in 1:n) {
+    if (gentype != "None")
+      oldrng <- initStream (gentype, as.character(repl), nstream=n,streamno=repl-1,
+                              seed=seed,kind=prngkind, para=para)
+    this.result <- try(fun(x[repl], ...))
+    val[repl] <- list(this.result)
+    if (gentype != "None")
+      freeStream(gentype, oldrng)
+    if (!is.null(printfun) & ((repl %% printrepl) == 0))
+      try(printfun(val,repl,printargs))
+    results <- c(results, val[repl])
+  }
+  if (ft_verbose)
+    cat("   loop finished.\n")
+  if (!is.null(exitfun)) {
+     if (ft_verbose) 
+        cat("   calling exitfun ...\n")
+     exitfun()
+  }
+
+  return(results)
+}
+
 performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
                             printfun=NULL,printargs=NULL,
                             printrepl=max(length(x)/10,1),
                             cltype = getClusterOption("type"),
-                            gentype="RNGstream", seed=rep(123456,6),
+                            gentype="RNGstream", seed=sample(1:9999999,6),
                             prngkind="default", para=0, 
 			    mngtfiles=c(".clustersize",".proc",".proc_fail"),
-                            ft_verbose=FALSE, ...) {
+                            ft_verbose=FALSE, 
+			    outfile = getClusterOption("outfile"),
+				...) {
 
   RNGnames <- c("RNGstream", "SPRNG", "None")
   rng <- pmatch (gentype, RNGnames)
@@ -291,11 +362,20 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
 
   gentype <- RNGnames[rng]
 
+  if (count == 0) { # run a sequential version of the code
+     return (performSequential(x, fun, initfun = initfun, exitfun = exitfun,
+                            printfun=printfun, printargs=printargs,
+                            printrepl=printrepl,
+                            gentype=gentype, seed=seed,
+                            prngkind=prngkind, para=para,
+                            ft_verbose=ft_verbose, ...))
+  }
+
   if (ft_verbose) {
      cat("\nFunction performParallel:\n")
      cat("   creating cluster ...\n")
   }
-  cl <- makeClusterFT(min(count,length(x)), cltype)
+  cl <- makeClusterFT(min(count,length(x)), cltype, outfile=outfile)
 
   if (!is.null(initfun)) {
     if (ft_verbose) 
@@ -321,6 +401,7 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
                            seed=seed, prngkind=prngkind,
                            para=para, mngtfiles=mngtfiles, 
 			   ft_verbose=ft_verbose, ...)
+
   if (ft_verbose) 
      cat("   clusterApplyFT finished.\n")
   val<-res[[1]]
@@ -375,9 +456,13 @@ clusterCheckSPRNG <- function (cl, prngkind = "default", ...)
   # for purposes of reproducible results. Like clusterSetupSPRNG, but makes
   # only a check,the initialization happens with each replication call
   # in clusterApplyFT
+  checkSPRNG(prngkind, ...)
+  clusterCall(cl, checkSprngNode)
+}
 
-  if (! require(rsprng))
-    stop("the `rsprng' package is needed for SPRNG support.")
+checkSPRNG <- function(prngkind = "default", ...) {
+#  if (! require(rsprng))
+#    stop("the `rsprng' package is needed for SPRNG support.")
   if (!is.character(prngkind) || length(prngkind) > 1)
     stop("'rngkind' must be a character string of length 1.")
   if (!is.na(pmatch(prngkind, "default")))
@@ -386,8 +471,6 @@ clusterCheckSPRNG <- function (cl, prngkind = "default", ...)
   kind <- pmatch(prngkind, prngnames) - 1
   if (is.na(kind))
     stop(paste("'", prngkind, "' is not a valid choice", sep = ""))
-  nc <- length(cl)
-  clusterCall(cl, checkSprngNode)
 }
 
 checkSprngNode <- function () 
@@ -400,6 +483,7 @@ checkSprngNode <- function ()
 #
 # rlecuyer support
 #
+
 
 clusterSetupRNGstreamRepli <- function (cl, seed=rep(12345,6), n, ...){
   # creates on all nodes one stream per replication.  

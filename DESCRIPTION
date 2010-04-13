@@ -1,6 +1,6 @@
 Package: snowFT
 Title: Fault Tolerant Simple Network of Workstations
-Version: 1.0-1
+Version: 1.1-1
 Author: Hana Sevcikova, A. J. Rossini
 Description: Extension of the snow package supporting fault tolerant
         and reproducible applications, as well as supporting
@@ -11,6 +11,6 @@ License: GPL (>= 2)
 Depends: R (>= 2.3), snow (>= 0.3-3), rpvm (>= 1.0.2)
 Suggests: rlecuyer, rsprng
 URL: http://www.stat.washington.edu/hana/parallel/snowFT-doc.pdf
-Packaged: Sun May 31 00:41:28 2009; hana
+Packaged: 2010-04-13 05:28:22 UTC; hana
 Repository: CRAN
-Date/Publication: 2009-06-02 15:42:55
+Date/Publication: 2010-04-13 07:15:19

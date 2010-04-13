@@ -1,0 +1,6 @@
+1.1-1 (04/12/2010)
+-----
+Added feature of running processes sequentially with the same RNs as in parallel 
+(set count=0 in performParallel).
+
+Default random seed in performParallel made random.

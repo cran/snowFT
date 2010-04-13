@@ -14,20 +14,12 @@ It is written for the PVM communication layer.
 
 \tabular{ll}{
 Package: \tab snowFT\cr
-Version: \tab 1.0-1\cr
+Version: \tab 1.1-1\cr
 License: \tab GPL\cr
 Depends: \tab R (>= 2.3), snow (>= 0.3-3), rpvm (>= 1.0.2)\cr
 }
 
-Index:
-\preformatted{
-addtoCluster            Repairing a Cluster
-clusterSetupRNG.FT      Random Number Generation
-makeClusterFT           Starting snowFT Clusters
-performParallel         Cluster-Level Functions with Fault Tolerant
-                        Features
-processStatus           Process control
-}
+The main function of this package is \code{\link{performParallel}}.
 
 The package supports a snow cluster that is:
 \enumerate{
@@ -36,6 +28,7 @@ The package supports a snow cluster that is:
 \item Computationally transparent: Currently processed replicates and failed replicates stored into files. Allows defining a function that is called after each given number of replicates.
 \item Dynamically resizeable: The cluster size is stored in a file which is read by the master repeatedly. In case of a modification the cluster is updated.
 \item No administration overhead: All administration is managed by the master in its waiting time. (Note that there is a time-overhead for creating and destroying the cluster, as well as the RNG initialization. Thus, simple operations, such as the example below, will not gain from running in parallel.)
+\item Allows running processes sequentially with the same random numbers as it would in parallel. Thus, results can be compared between the two modes.
 \item Easy to use: All features, including creating the cluster, RNG initialization and clean-up, are available through one single function - \code{\link{performParallel}}.
 }
 }
@@ -50,7 +43,7 @@ http://www.stat.washington.edu/hana/parallel/snowFT-doc.pdf
 \keyword{programming}
 \keyword{ package }
 \seealso{
-\code{\link[snow]{snow-package}}, \code{\link{performParallel}}
+\code{\link[snow]{clusterCall}}, \code{\link{performParallel}}
 }
 \examples{
   \dontrun{
