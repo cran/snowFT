@@ -1,0 +1,5 @@
+#source('/Users/hana/myprojects/snowFT/tests/test_functions.R')
+source('test_functions.R')
+run.rnorm.sock()
+run.rnorm.seq()
+check.reproducibility.for.seq.and.par()

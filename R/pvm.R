@@ -35,25 +35,11 @@ addtoCluster.PVMcluster <- function(cl, spec, ...,
   newcl <- vector("list",n+spec)
   for (i in seq(along=cl))
     newcl[[i]] <- cl[[i]]
-  for (i in (n+1):(n+spec))
+  for (i in (n+1):(n+spec)) {
     newcl[[i]] <- newPVMnode(options = options)
     newcl[[i]]$replic <- 0
-  class(newcl) <- c("PVMcluster")
-  newcl
-}
-
-removefromCluster.PVMcluster  <- function(cl, nodes) {
-  newcl <- vector("list",length(cl)-length(nodes))
-  j<-0
-  for (i in seq(along=cl)) {
-    if (length(nodes[nodes == i])>0) 
-      stopNode(cl[[i]])
-    else {
-      j<-j+1
-      newcl[[j]] <- cl[[i]]
-    }
   }
-  class(newcl) <- c("PVMcluster")
+  class(newcl) <- class(cl)
   newcl
 }
 
@@ -65,14 +51,18 @@ repairCluster.PVMcluster <- function(cl, nodes, ...,
     if (length(nodes[nodes == i])>0) {
       stopNode(cl[[i]])
       newcl[[i]] <- newPVMnode(options = options)
-      clusterEvalQpart(newcl,i,library(snowFT))
+      clusterEvalQpart(newcl,i,require(snowFT))
       newcl[[i]]$replic <- 0
     } else 
     newcl[[i]] <- cl[[i]]
   }
-  class(newcl) <- c("PVMcluster")
+  class(newcl) <- class(cl)
 	
   newcl  
+}
+
+is.manageable.PVMcluster <- function(cl) {
+	return (c(cluster.size=TRUE, monitor.procs=TRUE, repair=TRUE))
 }
 
 processStatus.PVMnode <- function(node) {
@@ -84,4 +74,65 @@ processStatus.PVMnode <- function(node) {
 
 getNodeID.PVMnode <- function(node) {
   return(node$tid)
+}
+
+do.administration.PVMcluster <- function(cl, clall, d, p, it, n, manage, mngtfiles, 
+									x, frep, freenodes, initfun, 
+									gentype, seed, ft_verbose, ...) {
+	free.nodes <- FALSE
+	if (length(d) <= 0) { # no results arrived yet
+    	while (TRUE) {
+            # do the administration in the waiting time
+            # ***************************************
+            if(manage['repair']) {
+            mfn <- findFailedNodes(cl) # look for failed nodes
+            if (nrow(mfn) > 0) { # failed nodes found
+            	fn<-mfn[,1]
+                frep <- c(frep, mfn[(mfn[,2]>0),2]) # only nodes where
+                                        # computation is running
+				if (ft_verbose) {
+					cat("   Failed slaves detected: ", fn,"\n")
+					cat("   Repair cluster ...\n")
+				}
+                cl <- repairCluster(cl,fn)
+		
+                if (!is.null(initfun)){
+		  			if (ft_verbose) 
+						cat("   calling initfun ...\n")
+                  	clusterCallpart(cl,fn,initfun)
+				}
+                if (gentype != "None"){
+		  			if (ft_verbose) 
+						cat("   initializing RNG ...\n")
+                  	resetRNG(cl,fn,length(x),gentype,seed)
+				}
+                #keep all nodes in case
+                #messages from failed nodes arrive later
+                clall<-combinecl(clall,cl[fn])               
+                freenodes<-c(freenodes,fn)
+                if (it <= n) break # exit the loop only if there are
+                                   				# comput. to be started 
+			}
+			}
+			# read p from a file 
+			updated.values <- manage.replications.and.cluster.size(cl, clall, p, n, manage, mngtfiles, 
+									freenodes, initfun, gentype, seed, ft_verbose=ft_verbose)
+			newp <- updated.values$newp
+			if (updated.values$cluster.increased) {
+				p <- updated.values$p
+				cl <- updated.values$cl
+				clall <- updated.values$clall
+				freenodes <- updated.values$freenodes
+				break
+			}
+            p <- newp              
+            d <- recvOneResultFT(clall,'t',time=5) # wait for a result for
+                                                  # 5 sec
+            if (length(d) > 0) break # some results arrived, if not
+                            	     # do administration again
+		}  # end of while loop ****************************
+        if ((length(freenodes) > 0) && (it <= n)) free.nodes <- TRUE
+	} 
+	
+	return(list(cl=cl, clall=clall, frep=frep, freenodes=freenodes, p=p, d=d, is.free.node=free.nodes))
 }

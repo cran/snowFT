@@ -8,11 +8,11 @@ clusterSetupRNGstreamRepli (cl, seed=rep(12345,6), n, ...)
 }
 \arguments{
   \item{cl}{Cluster object.}
-  \item{type}{\code{type="RNGstream"} (default) initializes the
-    L'Ecuyer's RNG.  \code{type="SPRNG"} initializes the
+  \item{type}{Type of the RNG. \code{"RNGstream"} initializes the
+    L'Ecuyer's RNG.  Type \code{"SPRNG"} initializes the
     SPRNG generator.}
-  \item{streamper}{\code{streamper="node"} initializes one random
-    number stream per node.\cr \code{streamper="replicate"} (default) initializes one stream per replicate.}
+  \item{streamper}{Mode of the inititalization. Value \code{"node"} initializes one random
+    number stream per node.\cr Value \code{"replicate"} initializes one stream per replicate.}
   \item{...}{Arguments passed to the underlying function (see details
 bellow).} 
   \item{seed}{Integer value (SPRNG) or a vector of six integer values
@@ -30,19 +30,19 @@ bellow).}
   \code{clusterSetupRNG.FT} calls (subject to its argument values) one of
   the following functions, passing arguments \code{(cl, ...)}: If the
 "SPRNG" type is used, then in case of
-  \code{streamper="node"} the snow function \code{clusterSetupSPRNG} is
+  \code{streamper="node"} the snow function \code{\link[snow]{clusterSetupSPRNG}} is
   called. In case of \code{streamper="replicate"}, the function only checks
   the availability of the \code{rsprng} package on nodes but no initialization will be done at this point. 
   If the
   "RNGstream" type is used, then in case of
-  \code{streamper="node"} the snow function \code{clusterSetupRNGstream} is
+  \code{streamper="node"} the snow function \code{\link[snow]{clusterSetupRNGstream}} is
   called and in case of
   \code{streamper="replicate"} the function
   \code{clusterSetupRNGstreamRepli} is called. In the latter case, the
   argument \code{n} has to be given that corresponds to the total number
   of streams created for the computation. This mode is used by \code{\link{clusterApplyFT}}. 
  Note that using the function
-  \code{performParalell}, 
+  \code{\link{performParallel}}, 
   the user does not need to initialize the RNG separately, since it is
   accomplished within the function. 
 
@@ -51,7 +51,7 @@ bellow).}
   streams are named by their ordinal number. 
 }
 \examples{
-  \dontrun{
+\dontrun{
 cl <- makeClusterFT(3)
 r<-10
 clusterSetupRNG.FT(cl, streamper="replicate",n=r, seed=rep(1,6))

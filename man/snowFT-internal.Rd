@@ -7,10 +7,12 @@
 \alias{recvOneDataFT}
 \alias{recvOneDataFT.MPIcluster}
 \alias{recvOneDataFT.PVMcluster}
+\alias{recvOneDataFT.SOCKcluster}
 \alias{recvOneResultFT}
 \alias{GetNodefromReplic}
 \alias{addtoCluster.MPIcluster}
 \alias{addtoCluster.PVMcluster}
+\alias{addtoCluster.SOCKcluster}
 \alias{checkSprngNode} 
 \alias{checkSPRNG}
 \alias{clusterCheckSPRNG} 
@@ -25,25 +27,32 @@
 \alias{processStatus.PVMnode}
 \alias{processStatus.SOCKnode}
 \alias{removecl}
-\alias{removefromCluster.MPIcluster}
-\alias{removefromCluster.PVMcluster}
-\alias{repairCluster.PVMcluster} 
+\alias{repairCluster.PVMcluster}
+\alias{repairCluster.SOCKcluster} 
+\alias{repairCluster.MPIcluster} 
 \alias{updatecl}
 \alias{writetomngtfile}
+
+\alias{do.administration}
+\alias{do.administration.MPIcluster}
+\alias{do.administration.PVMcluster}
+\alias{do.administration.SOCKcluster}
+\alias{is.manageable}
+\alias{is.manageable.MPIcluster}
+\alias{is.manageable.PVMcluster}
+\alias{is.manageable.SOCKcluster}
+\alias{manage.replications.and.cluster.size}
 \usage{
 \method{getNodeID}{SOCKnode}(node)
 \method{processStatus}{SOCKnode}(node)
 
 \method{addtoCluster}{PVMcluster}(cl, spec, ..., options = defaultClusterOptions)
-\method{getNodeID}{PVMnode}(node)
-\method{processStatus}{PVMnode}(node)
-\method{removefromCluster}{PVMcluster}(cl, nodes)
-\method{repairCluster}{PVMcluster}(cl, nodes, ..., options = defaultClusterOptions)
-
+\method{addtoCluster}{SOCKcluster}(cl, spec, ..., options = defaultClusterOptions)
 \method{addtoCluster}{MPIcluster}(cl, spec, ..., options = defaultClusterOptions)
+\method{getNodeID}{PVMnode}(node)
 \method{getNodeID}{MPInode}(node)
-\method{processStatus}{MPInode}(node)
-\method{removefromCluster}{MPIcluster}(cl, nodes)
+\method{processStatus}{PVMnode}(node)
+\method{repairCluster}{PVMcluster}(cl, nodes, ..., options = defaultClusterOptions)
 
 initStream(type="RNGstream", name, ...)
 freeStream(type="RNGstream", oldrng)
@@ -52,10 +61,9 @@ checkSprngNode()
 clusterCheckSPRNG(cl, prngkind = "default", ...)
 initRNGstreamNodeRepli(seed, n)
 
-recvOneDataFT(cl, type, time)
-recvOneResultFT(cl, type='b',time=0)
-\method{recvOneDataFT}{MPIcluster}(cl, type='b',time=0)
-\method{recvOneDataFT}{PVMcluster}(cl, type='b',time=0)
+\method{recvOneDataFT}{MPIcluster}(cl, type='b', time=0)
+\method{recvOneDataFT}{PVMcluster}(cl, type='b', time=0)
+\method{recvOneDataFT}{SOCKcluster}(cl, type='b', time=0)
 
 GetNodefromReplic(cl,replic)
 combinecl(oldcl, add)

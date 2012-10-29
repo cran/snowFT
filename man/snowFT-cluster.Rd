@@ -1,42 +1,54 @@
 \name{snowFT-cluster}
-\title{Cluster-Level Functions with Fault Tolerant Features}
+\title{Cluster-Level Functions with Fault Tolerance Features}
 \alias{performParallel}
 \alias{clusterApplyFT}
 \alias{clusterCallpart}
 \alias{clusterEvalQpart}
+\alias{printClusterInfo}
+
+\description{
+  Functions that extend the collection of cluster-level functions of the
+  \pkg{snow} package while providing fault tolerance, reproducibility and additional
+  management features. The heart of the package is the function
+  \code{performParallel}. 
+}
 \usage{
+performParallel(count, x, fun, initfun = NULL, exitfun = NULL, 
+                printfun = NULL, printargs = NULL, 
+                printrepl = max(length(x)/10,1), 
+                cltype = getClusterOption("type"),
+                cluster.args = NULL,
+                gentype = "RNGstream", seed = sample(1:9999999,6), 
+                prngkind = "default", para = 0, 
+                mngtfiles = c(".clustersize",".proc",".proc_fail"),
+                ft_verbose = FALSE, ...)
+
 clusterApplyFT(cl, x, fun, initfun = NULL, exitfun = NULL, 
                printfun = NULL, printargs = NULL, 
                printrepl = max(length(x)/10,1), gentype = "None", 
                seed = rep(123456,6), prngkind = "default", para = 0, 
                mngtfiles = c(".clustersize",".proc",".proc_fail"), 
                ft_verbose = FALSE, ...)
-
-performParallel(count, x, fun, initfun = NULL, exitfun = NULL, 
-                printfun = NULL, printargs = NULL, 
-                printrepl = max(length(x)/10,1), 
-                cltype = getClusterOption("type"), 
-                gentype = "RNGstream", seed = sample(1:9999999,6), 
-                prngkind = "default", para = 0, 
-                mngtfiles = c(".clustersize",".proc",".proc_fail"),
-                ft_verbose = FALSE, 
-                outfile = getClusterOption("outfile"), ...)
-
+               
 clusterCallpart(cl, nodes, fun, ...)
 
 clusterEvalQpart(cl, nodes, expr)
+
+printClusterInfo(cl)
 }
 \arguments{
+  \item{count}{Number of cluster nodes. If \code{count=0}, the process runs sequentially.}
   \item{cl}{Cluster object.}
-  \item{count}{Number of cluster nodes. If \code{count=0}, the process is run sequentially.}
-  \item{fun}{Function or character string naming a function.}
-  \item{x}{Array whose length determines how many times \code{fun} is to
+  \item{x}{Vector of values to be passed to function \code{fun}. 
+  	Its length determines how many times \code{fun} is to
   be called. \code{x[i]} is passed to \code{fun} (as its first argument)
-  at $i$th call.}
+  in the i-th call.}
+  \item{fun}{Function or character string naming a function.}
 \item{initfun}{Function or character string naming a
 function with no
   arguments that is to
-  be called on each node prior to the computation.}
+  be called on each node prior to the computation. 
+  It can be used for example for loading required libraries.}
 \item{exitfun}{Function or character string naming a function with no
   arguments that is to
   be called on each node after the computation is completed.}
@@ -50,9 +62,10 @@ the non-finished
   ones), the number of finished results,
   and \code{printargs}.}
 \item{cltype}{Character string that specifies cluster type (see
-  \code{\link{makeClusterFT}}).}
-\item{gentype}{Character string that specifies type of the used
-  RNG. Possible values: "RNGstream" (L'Ecuyer's RNG),
+  \code{\link{makeClusterFT}}). Possible values are 'PVM', 'MPI' and 'SOCK'.}
+\item{cluster.args}{List of arguments passed to the function \code{\link{makeClusterFT}}. For the \sQuote{SOCK} layer, the most useful argument in this list is \code{names} which can contain a vector of host names, or a list containing specification for each host (see Example in \code{\link[snow]{makeCluster}}). Due to the dynamic resizing feature, the length of this vector (or list) does not need to match the size of the cluster - it is used as a pool from which hosts are taken as they are needed. Another useful argument is \code{outfile}, specifying name of a file to which slave node output is to be directed.}
+\item{gentype}{Character string that specifies the type of the random number generator (RNG). 
+	Possible values: "RNGstream" (L'Ecuyer's RNG),
   "SPRNG", or "None", see
 \code{\link{clusterSetupRNG.FT}}. If
   \code{gentype="None"}, no RNG action is taken.}
@@ -60,24 +73,19 @@ the non-finished
   \code{\link{clusterSetupRNG.FT}}).}
 \item{mngtfiles}{A character vector of length 3 containing names of
   management files: \code{mngtfiles[1]} for managing the
-  cluster size, \code{mngtfiles[2]} for storing the replicates
-  being currently computed, \code{mngtfiles[3]} for storing the failed
+  cluster size, \code{mngtfiles[2]} for monitoring replicates
+  as they are processed, \code{mngtfiles[3]} for monitoring failed
   replicates. If any of these files equals an empty string, the
-  corresponding management actions are not performed. If the files
+  corresponding management actions (i.e. dynamic cluster resizing, outputting processed replicates, and cluster repair in case of failures) are not performed. If the files
   already exist, their content
-  is overwritten.}
+  is overwritten. Note that the cluster repair action is only available for PVM. Furthermore, the dynamic cluster resizing is not available for MPI.}
   \item{ft_verbose}{If TRUE, debugging messages are sent to standard output.}
-  \item{outfile}{Name of file which the nodes write into.} 
-  \item{expr}{Expression to evaluate.}
   \item{nodes}{Indices of cluster nodes.}
+  \item{expr}{Expression to evaluate.}
+
   \item{...}{Additional arguments to pass to function \code{fun}.}
 }
-\description{
-  Functions extending the collection of cluster-level functions of the
-  snow package providing fault tolerance, reproducibility and additional
-  management features. The heart of the package is the function
-  \code{performParallel}. 
-}
+
 \details{
   \code{clusterApplyFT} is a fault tolerant version of
   \code{clusterApplyLB} of the snow package with additional features, such as results
@@ -89,7 +97,7 @@ resizing. The master process searches for failed nodes in its
   loop is finished, and hence the user should not notice any
   interruptions.
 
- The file \code{mngtfiles[1]} is initially written by the master
+ The file \code{mngtfiles[1]} (which defaults to \sQuote{.clustersize}) is initially written by the master
   prior to the computation and it contains a single integer value corresponding
   to the number of cluster nodes. Then the value can be arbitrarily changed by
   the user (but should remain in the same format). The master reads the
@@ -126,6 +134,8 @@ number). Thus, the final results are reproducible.
   
   \code{clusterEvalQpart} evaluates a literal expression on nodes
   specified by indices \code{nodes}. 
+  
+  \code{printClusterInfo} prints out some basic information about the cluster.
 }
 
 \value{\code{clusterApplyFT} returns a list of two elements. The first
@@ -136,7 +146,7 @@ number). Thus, the final results are reproducible.
   \code{performParallel} returns a list of results.
 }
 \examples{
-  \dontrun{
+\dontrun{
 # generates n normally distributed random numbers in r replicates
 # on p nodes and prints their mean after each r/10 replicate.
 

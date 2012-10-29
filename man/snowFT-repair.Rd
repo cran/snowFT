@@ -5,7 +5,7 @@
 \alias{repairCluster}
 \usage{
 addtoCluster(cl, spec, ..., options = defaultClusterOptions)
-removefromCluster(cl, nodes)
+removefromCluster(cl, nodes, ft_verbose = FALSE)
 repairCluster(cl, nodes, ..., options = defaultClusterOptions)
 }
 \arguments{
@@ -14,6 +14,7 @@ repairCluster(cl, nodes, ..., options = defaultClusterOptions)
   \item{cl}{Cluster object.}
   \item{nodes}{Indices of nodes.}
   \item{options}{Cluster options object.}
+  \item{ft_verbose}{If TRUE, debugging messages are sent to standard output.}
   \item{...}{Cluster option specifications.}
 }
 \description{
@@ -38,11 +39,19 @@ repairCluster(cl, nodes, ..., options = defaultClusterOptions)
 \author{Hana Sevcikova}
 \examples{
   \dontrun{
+# create a cluster of size five
 cl <- makeClusterFT(5)
 clusterApply(cl, 1:5, get("+"), 3)
+# add three nodes 
 cl <- addtoCluster(cl,3)
+printClusterInfo(cl)
+# remove nodes 3 and 7
+cl <- removefromCluster(cl, c(3, 7), ft_verbose=TRUE)
+# check for failures
 fail<-findFailedNodes(cl)
 cl<-repairCluster(cl,fail[,1])
+# stop cluster
+stopCluster(cl)
 }
 }
 \keyword{programming}

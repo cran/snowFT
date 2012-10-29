@@ -15,6 +15,8 @@ findFailedNodes(cl)
   \code{processStatus} checks the existence of a node.
   
   \code{findFailedNodes} identifies all failed nodes in the cluster.
+  
+  These functions are available only for the PVM layer.
 }
 
 \value{

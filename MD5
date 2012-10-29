@@ -1,0 +1,16 @@
+603bc7746ade43914bb128d0048d28ea *ChangeLog
+c5847c493ae087cd28f117d175463ad7 *DESCRIPTION
+c9d13dc9263bf748561759bc863ceba5 *NAMESPACE
+5d858f0af944e6b44cd7013eadb28713 *R/mpi.R
+6ad1e8d62bd1bb3059f7334e5a33c6c5 *R/pvm.R
+3dcad2e969b1470472528be858f993f8 *R/snowFT.R
+4d9eb169bbca5c52ddc6c938f88d2c99 *R/sock.R
+f59ca61cd82ff29b5413961a0a5633f9 *man/snowFT-cluster.Rd
+9c7d16c6c02ab3d9a8e42b96e3f7542e *man/snowFT-internal.Rd
+38212594a26e87bf0c827e3d8af262f3 *man/snowFT-package.Rd
+bf7c18cbbaf6af0dd8f01a3a12d59a29 *man/snowFT-process.Rd
+3a55951b7151046607c40afa89067333 *man/snowFT-rand.Rd
+1b0bea669fd9ec999bafbef410bf4387 *man/snowFT-repair.Rd
+33f52b7e7c82f34a38c8c1d2eabbd7b1 *man/snowFT-startstop.Rd
+c7204aab8ef44bbfacb5b790f0fba34a *tests/run_tests.R
+2bb34652bd9442bab8cd362c6fc48b51 *tests/test_functions.R

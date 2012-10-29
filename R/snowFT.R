@@ -4,6 +4,9 @@
 
 processStatus <- function(node) UseMethod("processStatus")
 
+# Administration
+do.administration <- function(cl, ...) UseMethod("do.administration")
+is.manageable <- function(cl) UseMethod("is.manageable")
 
 #
 # Higher-Level Node Functions
@@ -18,26 +21,58 @@ recvOneDataFT <- function(cl,type,time) UseMethod("recvOneDataFT")
 
 addtoCluster <- function(cl, spec, ..., options = defaultClusterOptions)
   UseMethod("addtoCluster") 
-removefromCluster <- function(cl, nodes) UseMethod("removefromCluster")
+
 repairCluster <- function(cl, nodes, ..., options = defaultClusterOptions)
   UseMethod("repairCluster")
+
+removefromCluster  <- function(cl, nodes, ft_verbose=FALSE) {
+  newcl <- vector("list",length(cl)-length(nodes))
+  j<-0
+  for (i in seq(along=cl)) {
+    if (length(nodes[nodes == i])>0) 
+      stopNode(cl[[i]])
+    else {
+      j<-j+1
+      newcl[[j]] <- cl[[i]]
+    }
+  }
+    for(clattr in names(attributes(cl))){
+        attr(newcl, clattr) <- attr(cl, clattr)
+    }
+    if(ft_verbose) printClusterInfo(newcl)
+  newcl
+}
+
+printClusterInfo <- function(cl) {
+    cat('\nCluster size:', length(cl))
+    cat('\nCluster type:', class(cl))
+        if (length(cl) > 0 && is.element('host', names(cl[[1]]))) {
+            cat('\nHosts: ')
+            for(node in cl) cat(node$host, ', ')
+      	}
+    cat('\n')
+}
 
 #
 # Cluster Functions
 #
 
-makeClusterFT <- function(spec, type = getClusterOption("type"), ...) {
+makeClusterFT <- function(spec, type = getClusterOption("type"), names=NULL, 
+				ft_verbose=FALSE, ...) {
     if (is.null(type))
         stop("need to specify a cluster type")
     cl <- switch(type,
-        SOCK = stop("Function implemented only for PVM"),
+        SOCK = makeSOCKclusterFT(spec, names, ...),
         PVM = makePVMcluster(spec, ...),
-        MPI = stop("Function implemented only for PVM"),
+        MPI = makeMPIcluster(spec, ...),
         stop("unknown cluster type"))
-    clusterEvalQ(cl, library(snowFT))
+    clusterEvalQ(cl, require(snowFT))
+    if(ft_verbose) {
+        cat('\nCluster successfully created.')
+        printClusterInfo(cl)
+    } 
     return(cl)
 }
-
 
 clusterCallpart  <- function(cl, nodes, fun, ...) {
     for (i in seq(along = nodes))
@@ -83,194 +118,147 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
 #                 when there is no message arrived and thus nothing
 #                 else to do.
 
-  if (all(is.na(pmatch(attr(cl,"class"), "PVMcluster")))) {
-    cat("\nThe function clusterApplyFT can be used only with PVM interface!\n")
-    return(list(NULL,cl))
-  }
+	if (all(is.na(pmatch(attr(cl,"class"), c("PVMcluster", "MPIcluster", "SOCKcluster"))))) {
+    	cat("\nInvalid communication layer.\n")
+		return(list(NULL,cl))
+  	}
 
-  if (length(cl)<=0) 
-     stop("No cluster created!")
+	if (length(cl)<=0) 
+    	stop("No cluster created!")
  
-  if (!is.na(pmatch(prngkind, "default")))
-    prngkind <- "LFG"
-  prngnames <- c("LFG", "LCG", "LCG64", "CMRG", "MLFG", "PMLCG")
-  kind <- pmatch(prngkind, prngnames)
-  gennames <- c("RNGstream", "SPRNG", "None")
-  gen <- pmatch(gentype,gennames)
-  if (is.na(gen))
-    stop(paste("'", gentype,
+	if (!is.na(pmatch(prngkind, "default")))
+    	prngkind <- "LFG"
+  	prngnames <- c("LFG", "LCG", "LCG64", "CMRG", "MLFG", "PMLCG")
+  	kind <- pmatch(prngkind, prngnames)
+  	gennames <- c("RNGstream", "SPRNG", "None")
+  	gen <- pmatch(gentype,gennames)
+  	if (is.na(gen))
+    	stop(paste("'", gentype,
                "' is not a valid choice. Choose 'RNGstream', 'SPRNG' or 'None'.",
                sep = ""))
-  gentype <- gennames[gen]
+  	gentype <- gennames[gen]
 
-  lmng <- length(mngtfiles)
-  if (lmng < 3)
-    mngtfiles[(lmng+1):3] <- ""
-  manage <- nchar(mngtfiles) > 0
-  if (ft_verbose) {
-     cat("\nFunction clusterApplyFT:\n")
-     cat("   gentype:",gentype,"\n")
-     cat("   seed:   ",seed,"\n")
-     cat("   Management files:\n")
-     if(manage[1])
-	cat("     cluster size:", mngtfiles[1],"\n")
-     if(manage[2])
-	cat("     running processes:", mngtfiles[2],"\n")
-     if(manage[3])
-	cat("     failed nodes:", mngtfiles[3],"\n")
-  }
-  n <- length(x)
-  p <- length(cl)
-  fun <- fun # need to force the argument
-  printfun <- printfun
-  val <- NULL
+  	lmng <- length(mngtfiles)
+  	if (lmng < 3)
+    	mngtfiles <- c(mngtfiles, rep('', 3-lmng))
+  	manage <- is.manageable(cl) & (nchar(mngtfiles) > 0)
+  	if (ft_verbose) {
+    	cat("\nFunction clusterApplyFT:\n")
+     	cat("   gentype:",gentype,"\n")
+     	cat("   seed:   ",seed,"\n")
+     	if(sum(manage) > 0)
+     		cat("   Management files:\n")
+     	if(manage['cluster.size'])
+			cat("     cluster size:", mngtfiles[1],"\n")
+     	if(manage['monitor.procs'])
+			cat("     running processes:", mngtfiles[2],"\n")
+     	if(manage['repair'])
+			cat("     failed nodes:", mngtfiles[3],"\n")
+  	}
+  	n <- length(x)
+  	p <- length(cl)
+  	fun <- fun # need to force the argument
+  	printfun <- printfun
+  	val <- NULL
 
-  if (n > 0 && p > 0) {
-    wrap <- function(x, i, n, gentype, seed, prngkind, ...){
-      if (gentype != "None")
-        oldrng <- initStream (gentype, as.character(i), nstream=n,streamno=i-1,
+  	if (n > 0 && p > 0) {
+    	wrap <- function(x, i, n, gentype, seed, prngkind, ...){
+      		if (gentype != "None")
+        		oldrng <- initStream (gentype, as.character(i), nstream=n,streamno=i-1,
                               seed=seed,kind=prngkind, para=para)
-      value <- try(fun(x, ...))
-      if (gentype != "None")
-        freeStream(gentype, oldrng)
-      return(list(value = value, index = i))
-    }
-    submit <- function(node, job, n, gentype, seed, prngkind) {
-      args <- c(list(x[[job]]), list(job), list(n), list(gentype),
+      		value <- try(fun(x, ...))
+      		if (gentype != "None")
+        		freeStream(gentype, oldrng)
+      		return(list(value = value, index = i))
+    	}
+    	submit <- function(node, job, n, gentype, seed, prngkind) {
+      		args <- c(list(x[[job]]), list(job), list(n), list(gentype),
                 list(seed),list(prngkind),list(...))
-      sendCall(cl[[node]], wrap, args)
-    }
+      		sendCall(cl[[node]], wrap, args)
+    	}
 
-    val <- vector("list", length(x))
-    if (manage[1])
-      write(p, file=mngtfiles[1])
-    replvec <- 1:n
-    for (run in 1:3) { # second and third run is for restarting failed
-                       # replications
-      if (run > 1) {
-	if (ft_verbose) 
-		cat(run,"th run for replications:",frep,"\n")
-        replvec <- frep
-        n<-length(replvec)
-      }
-      for (i in 1 : min(n, p)) {         
-        repl <- replvec[i]
-        submit(i, repl,length(x),gen,seed,kind)
-        cl[[i]]$replic <- repl
-      }
-      clall<-cl
-      fin <- 0
-      frep <- c() # list of replications of failed nodes
-      if (manage[3])
-        write(frep,mngtfiles[3])
-      startit<-min(n, p)
-      freenodes<-c()
-      it<-startit
-      while(fin < (n-length(frep))) {
-        it <- it+1
-        if (it <= n) 
-          repl<-replvec[it]
-        while ((length(freenodes) <= 0) |
-               ((it > n) & fin < (n-length(frep)))) { # all nodes busy
+    	val <- vector("list", n)
+    	if (manage['cluster.size'])
+      		write(p, file=mngtfiles[1])
+    	replvec <- 1:n
+    	maxit <- if(manage['repair']) 3 else 1 # second and third run is for restarting failed
+            	           					# replications
+    	for (run in 1:maxit) { 
+      		if (run > 1) {
+				if (ft_verbose) 
+					cat(run,"th run for replications:",frep,"\n")
+        		replvec <- frep
+        		n<-length(replvec)
+      		}
+      		for (i in 1 : min(n, p)) {         
+        		repl <- replvec[i]
+        		submit(i, repl,n,gennames[gen],seed,kind)
+        		cl[[i]]$replic <- repl
+      		}
+      		clall<-cl
+      		fin <- 0
+      		frep <- c() # list of replications of failed nodes
+      		if (manage['repair'])
+        		write(frep,mngtfiles[3])
+      		startit<-min(n, p)
+      		freenodes<-c()
+      		it<-startit
+      		while(fin < (n-length(frep))) {
+        		it <- it+1
+        		if (it <= n) 
+          			repl<-replvec[it]
+        		while ((length(freenodes) <= 0) ||
+               			((it > n) && fin < (n-length(frep)))) { # all nodes busy
                                         # or wait for remaining results
-          d <- recvOneResultFT(clall,'n') # look if there is any result
-          if (length(d) <= 0) { # no results arrived yet
-            while (TRUE) {
-                   # some administration in the waiting time
-                   # ***************************************
-              mfn <- findFailedNodes(cl) # look for failed nodes
-              if (nrow(mfn) > 0) { # failed nodes found
-                fn<-mfn[,1]
-                frep <- c(frep, mfn[(mfn[,2]>0),2]) # only nodes where
-                                        # computation is running
-		if (ft_verbose) {
-			cat("   Failed slaves detected: ", fn,"\n")
-			cat("   Repair cluster ...\n")
-		}
-                cl <- repairCluster(cl,fn)
-		
-                if (!is.null(initfun)){
-		  if (ft_verbose) 
-			cat("   calling initfun ...\n")
-                  clusterCallpart(cl,fn,initfun)
-		}
-                if (gentype != "None"){
-		  if (ft_verbose) 
-			cat("   initializing RNG ...\n")
-                  resetRNG(cl,fn,length(x),gentype,seed)
-		}
-                             #keep all nodes in case
-                             #messages from failed nodes arrive later
-                clall<-combinecl(clall,cl[fn])               
-                freenodes<-c(freenodes,fn)
-                if (it <= n) break # exit the loop only if there are
-                                   # comput. to be started 
-              }
-              if (manage[1])
-                  # read p from a file 
-                newp <- scan(file=mngtfiles[1],what=integer(),nlines=1)
-              else newp <- p
-              if (manage[2])
-                  # write the currently processed replications into a file 
-                writetomngtfile(cl,mngtfiles[2])
-              if (manage[3])
-                  # write failed replications into a file
-                write(frep,mngtfiles[3])
-              if (newp > p) { # increase the degree of parallelism
-                cl<-addtoCluster(cl, newp-p)
-                if (!is.null(initfun))
-                  clusterCallpart(cl,(p+1):newp,initfun)
-                if (gentype != "None")
-                  resetRNG(cl,(p+1):newp,length(x),gentype,seed)
-                clall<-combinecl(clall,cl[(p+1):newp])
-                freenodes<-c(freenodes,(p+1):newp)
-                p <- newp
-                break
-              }
-              p <- newp
-                  # end of administration ****************************
-              
-              d <- recvOneResultFT(clall,'t',time=5) # wait for a result for
-                                                   # 5 sec
-              if (length(d) > 0) break # some results arrived, if not
-                                       # do administration again
-            }
-            if ((length(freenodes) > 0) & (it <= n)) break
-          }
-          val[d$value$index] <- list(d$value$value)
-          node <- GetNodefromReplic(cl,d$value$index)
-          if (node > 0) {
-            if (length(cl) > p) { # decrease the degree of parallelism
-              if (!is.null(exitfun))
-                clusterCallpart(cl,node,exitfun)
-              clall<-removecl(clall,c(cl[[node]]$replic))
-              cl <- removefromCluster(cl,node)
-            } else {
-              freenodes <- c(freenodes,node)
-              cl[[node]]$replic<-0
-            }
-          } else {#result from a failed node
-            frep <- frep[-which(frep == d$value$index)]
-            clall <- removecl(clall,c(d$value$index))
-          }
-          fin <- fin + 1
-          if (!is.null(printfun) & ((fin %% printrepl) == 0))
-            try(printfun(val,fin,printargs))
-        }
-        if (it <= n) {
-          submit(freenodes[1], repl,length(x),gen,seed,kind)
-          cl[[freenodes[1]]]$replic <- repl
-          clall <- updatecl(clall,cl[[freenodes[1]]])
-          freenodes <- freenodes[-1]
-        }
-      }
-      if (length(frep) <= 0) break # everything went well, no need to go
+          			d <- recvOneResultFT(clall,'n') # look if there is any result
+          			admin <- do.administration(cl, clall, d, p, it, n, manage, mngtfiles, 
+									x, frep, freenodes, initfun, 
+									gentype, seed, ft_verbose)
+					cl <- admin$cl
+					clall <- admin$clall
+					d <- admin$d
+					frep <- admin$frep
+					freenodes <- admin$freenodes
+					p <- admin$p
+					if (admin$is.free.node) break
+					if (!is.list(d$value))
+						stop(paste('Error in received results:\n', paste(d, collapse='\n')))
+					val[d$value$index] <- list(d$value$value)
+          			node <- GetNodefromReplic(cl,d$value$index)
+          			if (node > 0) {
+            			if (length(cl) > p) { # decrease the degree of parallelism
+            					if (ft_verbose) 
+									cat('\nDecreasing cluster size from', length(cl), 'to', p)
+              				if (!is.null(exitfun))
+                					clusterCallpart(cl,node,exitfun)
+              				clall<-removecl(clall,c(cl[[node]]$replic))
+              				cl <- removefromCluster(cl,node, ft_verbose=ft_verbose)
+            			} else {
+              				freenodes <- c(freenodes,node)
+              				cl[[node]]$replic<-0
+            			}
+          			} else { # result from a failed node
+            			frep <- frep[-which(frep == d$value$index)]
+            			clall <- removecl(clall,c(d$value$index))
+          			}
+          			fin <- fin + 1
+          			if (!is.null(printfun) & ((fin %% printrepl) == 0))
+            			try(printfun(val,fin,printargs))
+        		}
+        		if (it <= n) {
+          			submit(freenodes[1], repl, n, gennames[gen],seed,kind)
+          			cl[[freenodes[1]]]$replic <- repl
+          			clall <- updatecl(clall,cl[[freenodes[1]]])
+          			freenodes <- freenodes[-1]
+        		}
+      		}
+      		if (length(frep) <= 0) break # everything went well, no need to go
                                         # to the next run
-    }
-    if (length(frep) > 0)
-      cat("\nWarning: Some replications failed!\n") # even in the third run
-  }
-  return(list(val,cl))
+    	}
+    	if (length(frep) > 0)
+      		cat("\nWarning: Some replications failed!\n") # even in the third run
+  	}
+  	return(list(val,cl))
 }
 
 performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
@@ -300,7 +288,7 @@ performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
   if (RNGnames[rng] != "None") {
     if (ft_verbose) { 
         cat("   initializing RNG ...\n")
-	cat("     gentype:",gentype,"\n")
+		cat("     gentype:",gentype,"\n")
         cat("     seed:   ",seed,"\n")
     }
     if (rng == 1) {
@@ -346,12 +334,11 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
                             printfun=NULL,printargs=NULL,
                             printrepl=max(length(x)/10,1),
                             cltype = getClusterOption("type"),
+                            cluster.args=NULL,
                             gentype="RNGstream", seed=sample(1:9999999,6),
                             prngkind="default", para=0, 
 			    mngtfiles=c(".clustersize",".proc",".proc_fail"),
-                            ft_verbose=FALSE, 
-			    outfile = getClusterOption("outfile"),
-				...) {
+                            ft_verbose=FALSE, ...) {
 
   RNGnames <- c("RNGstream", "SPRNG", "None")
   rng <- pmatch (gentype, RNGnames)
@@ -375,7 +362,8 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
      cat("\nFunction performParallel:\n")
      cat("   creating cluster ...\n")
   }
-  cl <- makeClusterFT(min(count,length(x)), cltype, outfile=outfile)
+  cl <- do.call('makeClusterFT', c(list(min(count,length(x)), cltype, ft_verbose=ft_verbose), 
+				cluster.args))
 
   if (!is.null(initfun)) {
     if (ft_verbose) 
@@ -414,7 +402,7 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
   stopCluster(cl)
   if (ft_verbose) 
      cat("   cluster stopped.\n")
-  return(val)
+  return(checkForRemoteErrors(val))
 }
 
 clusterSetupRNG.FT <- function (cl, type="RNGstream", streamper="replicate", ...) {
@@ -607,6 +595,32 @@ writetomngtfile <- function(cl, file) {
   write(repl,file)
 }
 
+manage.replications.and.cluster.size <- function(cl, clall, p, n, manage, mngtfiles, 
+									freenodes, initfun, gentype, seed, ft_verbose=FALSE) {
+	newp <- if (manage['cluster.size']) 
+				scan(file=mngtfiles[1],what=integer(),nlines=1, quiet=TRUE) 
+			else p
+	if (manage['monitor.procs'])
+  		# write the currently processed replications into a file 
+        writetomngtfile(cl,mngtfiles[2])
+    cluster.increased <- FALSE
+    if (newp > p) { # increase the degree of parallelism
+    	cl<-addtoCluster(cl, newp-p)
+    	clusterEvalQpart(cl,(p+1):newp,require(snowFT))
+        if(ft_verbose)
+            printClusterInfo(cl)
+       if (!is.null(initfun))
+        	clusterCallpart(cl,(p+1):newp,initfun)
+       if (gentype != "None")
+        	resetRNG(cl,(p+1):newp,n,gentype,seed)
+        clall<-combinecl(clall,cl[(p+1):newp])
+        freenodes<-c(freenodes,(p+1):newp)
+        p <- newp
+        cluster.increased <- TRUE
+	}
+	return(list(cluster.increased=cluster.increased, 
+			cl=cl, clall=clall, freenodes=freenodes, p=p, newp=newp))
+}
 
 #
 #  Library Initialization
