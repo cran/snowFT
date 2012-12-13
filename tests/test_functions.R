@@ -25,21 +25,21 @@ run.rnorm.seq <- function() {
 run.rnorm.sock.cluster.args <- function(nprocs=50, nrns=1000) {
 	cat('\nRunning rnorm test with SOCK and cluster options ...\n')
 	fun <- function(i) {
-            Sys.sleep(20)
+            Sys.sleep(5)
 	    return(rnorm(i))
 	}
         st <- system.time(res <- performParallel(5, rep(nrns, nprocs), fun=fun, cltype='SOCK', 
-				cluster.args=list(names=paste('fal', 11:17, sep='')),
+				cluster.args=list(names=paste('fal', 11:16, sep='')),
 				ft_verbose=TRUE))
         print(st)
         stopifnot(length(res) == nprocs)
         stopifnot(length(res[[1]]) == nrns)
 }
 
-run.rnorm.pvm <- function(nprocs=100, nrns=10000) {
+run.rnorm.pvm <- function(nprocs=50, nrns=1000) {
         cat('\nRunning rnorm test with PVM ...\n')
         fun <- function(i) {
-            Sys.sleep(20)
+            Sys.sleep(5)
             return(rnorm(i))
         }
         st <- system.time(res <- performParallel(5, rep(nrns, nprocs), fun=fun, cltype='PVM',
@@ -48,6 +48,20 @@ run.rnorm.pvm <- function(nprocs=100, nrns=10000) {
       	stopifnot(length(res) == nprocs)
       	stopifnot(length(res[[1]]) == nrns)
 }
+
+run.rnorm.mpi <- function(nprocs=50, nrns=1000) {
+        cat('\nRunning rnorm test with MPI ...\n')
+        fun <- function(i) {
+            Sys.sleep(20)
+            return(rnorm(i))
+        }
+        st <- system.time(res <- performParallel(5, rep(nrns, nprocs), fun=fun, cltype='MPI',
+                                ft_verbose=TRUE))
+        print(st)
+      	stopifnot(length(res) == nprocs)
+      	stopifnot(length(res[[1]]) == nrns)
+}
+
 
 
 check.reproducibility.for.seq.and.par <- function() {

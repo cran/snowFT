@@ -12,7 +12,7 @@ makeClusterFT(spec, type = getClusterOption("type"),
 }
 \arguments{
   \item{spec}{Cluster size.}
-  \item{type}{Character string that specifies cluster type. "PVM", "MPI" and "SOCK" are supported.}
+  \item{type}{Character string that specifies cluster type. "MPI" and "SOCK" are supported ("PVM" is currently not available).}
   \item{names}{Used only for the \sQuote{SOCK} layer. It should be a vector of host names, or a list containing specification for each host (see Example in \code{\link[snow]{makeCluster}}). Due to the dynamic resizing feature, the length of this vector (or list) does not need to match the size of the cluster \code{spec} - it is used as a pool from which hosts are taken as they are needed. If \code{names} is \code{NULL}, each node is started on \sQuote{localhost}.}
   \item{ft_verbose}{If TRUE, debugging messages are sent to standard output.}
   \item{...}{Cluster option specifications. A useful option is \code{outfile}, specifying name of a file to which slave node output is to be directed.}

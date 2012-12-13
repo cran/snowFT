@@ -8,16 +8,16 @@ Fault Tolerant Simple Network of Workstations
 \description{
 Extension of the snow package supporting fault tolerant
 and reproducible applications, as well as supporting easy-to-use parallel programming - only one function is needed. 
-It supports the PVM, MPI as well as the socket communication layers.
+It supports the MPI and the socket communication layers.
 }
 \details{
 
 \tabular{ll}{
 Package: \tab snowFT\cr
-Version: \tab 1.2-0\cr
+Version: \tab 1.3-0\cr
 License: \tab GPL\cr
 Depends: \tab R (>= 2.11), snow (>= 0.3-3)\cr
-Suggests: \tab rpvm, rmpi, rlecuyer, rsprng\cr
+Suggests: \tab Rmpi, rlecuyer, rsprng\cr
 }
 
 The main function of this package, \code{\link{performParallel}}, handles all tasks that are necessary for evaluating a user-defined function in parallel. These include creating a cluster, initializing nodes, handling a random number generator, processing the given function on the cluster and cleaning up. In the very basic settings (i.e. when using with the socket layer), no additional software is necessary. The package can be used on a single multi-processor/core machine, homogeneous cluster, or a heterogeneous group of computers.
@@ -34,6 +34,7 @@ The package supports creating and handling a \pkg{snow} cluster that is:
 }
 Note that not all features are available for all communication layers. The fault tolerance is currently available only for PVM. Dynamic resizing is not available for MPI.
 }
+\note{The previously supported PVM communication layer is currently switched off because the \pkg{rpvm} package is no longer on CRAN.}
 \author{
 Hana Sevcikova, A. J. Rossini
 

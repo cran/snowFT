@@ -63,7 +63,7 @@ makeClusterFT <- function(spec, type = getClusterOption("type"), names=NULL,
         stop("need to specify a cluster type")
     cl <- switch(type,
         SOCK = makeSOCKclusterFT(spec, names, ...),
-        PVM = makePVMcluster(spec, ...),
+        #PVM = makePVMcluster(spec, ...),
         MPI = makeMPIcluster(spec, ...),
         stop("unknown cluster type"))
     clusterEvalQ(cl, require(snowFT))
@@ -118,7 +118,8 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
 #                 when there is no message arrived and thus nothing
 #                 else to do.
 
-	if (all(is.na(pmatch(attr(cl,"class"), c("PVMcluster", "MPIcluster", "SOCKcluster"))))) {
+	if (all(is.na(pmatch(attr(cl,"class"), c(#"PVMcluster", 
+							"MPIcluster", "SOCKcluster"))))) {
     	cat("\nInvalid communication layer.\n")
 		return(list(NULL,cl))
   	}
@@ -271,7 +272,7 @@ performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
   RNGnames <- c("RNGstream", "SPRNG", "None")
   rng <- pmatch (gentype, RNGnames)
   if (is.na(rng))
-    stop(paste("'", type,
+    stop(paste("'", gentype,
                "' is not a valid choice. Choose 'RNGstream', 'SPRNG' or 'None'.",
                sep = ""))
   gentype <- RNGnames[rng]
@@ -361,6 +362,10 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
   if (ft_verbose) {
      cat("\nFunction performParallel:\n")
      cat("   creating cluster ...\n")
+  }
+  if(cltype=="PVM") {
+  	warning('PVM layer is currently unavailable. Using SOCK layer.')
+  	cltype <- 'SOCK'
   }
   cl <- do.call('makeClusterFT', c(list(min(count,length(x)), cltype, ft_verbose=ft_verbose), 
 				cluster.args))
@@ -510,7 +515,7 @@ initStream <- function (type="RNGstream", name, ...) {
 freeStream <- function (type="RNGstream", oldrng) {
   switch(type,
          RNGstream = .lec.CurrentStreamEnd(oldrng),
-         SPRNG = free.sprng(oldrng)
+         SPRNG = free.sprng()
          )
 }
 
@@ -626,6 +631,6 @@ manage.replications.and.cluster.size <- function(cl, clall, p, n, manage, mngtfi
 #  Library Initialization
 #
 
-.First.lib <- function(libname, pkgname) {
-	   require(snow)
-}
+#.First.lib <- function(libname, pkgname) {
+#	   require(snow)
+#}

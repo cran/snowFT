@@ -62,7 +62,7 @@ the non-finished
   ones), the number of finished results,
   and \code{printargs}.}
 \item{cltype}{Character string that specifies cluster type (see
-  \code{\link{makeClusterFT}}). Possible values are 'PVM', 'MPI' and 'SOCK'.}
+  \code{\link{makeClusterFT}}). Possible values are 'MPI' and 'SOCK' ('PVM' is currently not available).}
 \item{cluster.args}{List of arguments passed to the function \code{\link{makeClusterFT}}. For the \sQuote{SOCK} layer, the most useful argument in this list is \code{names} which can contain a vector of host names, or a list containing specification for each host (see Example in \code{\link[snow]{makeCluster}}). Due to the dynamic resizing feature, the length of this vector (or list) does not need to match the size of the cluster - it is used as a pool from which hosts are taken as they are needed. Another useful argument is \code{outfile}, specifying name of a file to which slave node output is to be directed.}
 \item{gentype}{Character string that specifies the type of the random number generator (RNG). 
 	Possible values: "RNGstream" (L'Ecuyer's RNG),
