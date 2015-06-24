@@ -66,7 +66,7 @@ makeClusterFT <- function(spec, type = getClusterOption("type"), names=NULL,
         #PVM = makePVMcluster(spec, ...),
         MPI = makeMPIcluster(spec, ...),
         stop("unknown cluster type"))
-    clusterEvalQ(cl, require(snowFT))
+    clusterEvalQ(cl, library(snowFT))
     if(ft_verbose) {
         cat('\nCluster successfully created.')
         printClusterInfo(cl)
@@ -131,11 +131,11 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
     	prngkind <- "LFG"
   	prngnames <- c("LFG", "LCG", "LCG64", "CMRG", "MLFG", "PMLCG")
   	kind <- pmatch(prngkind, prngnames)
-  	gennames <- c("RNGstream", "SPRNG", "None")
+  	gennames <- c("RNGstream", "None")
   	gen <- pmatch(gentype,gennames)
   	if (is.na(gen))
     	stop(paste("'", gentype,
-               "' is not a valid choice. Choose 'RNGstream', 'SPRNG' or 'None'.",
+               "' is not a valid choice. Choose 'RNGstream' or 'None'.",
                sep = ""))
   	gentype <- gennames[gen]
 
@@ -269,11 +269,11 @@ performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
                             gentype="RNGstream", seed=sample(1:9999999,6),
                             prngkind="default", para=0,
                             ft_verbose=FALSE, ...) {
-  RNGnames <- c("RNGstream", "SPRNG", "None")
+  RNGnames <- c("RNGstream",  "None")
   rng <- pmatch (gentype, RNGnames)
   if (is.na(rng))
     stop(paste("'", gentype,
-               "' is not a valid choice. Choose 'RNGstream', 'SPRNG' or 'None'.",
+               "' is not a valid choice. Choose 'RNGstream' or 'None'.",
                sep = ""))
   gentype <- RNGnames[rng]
   n <- length(x)
@@ -292,11 +292,7 @@ performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
 		cat("     gentype:",gentype,"\n")
         cat("     seed:   ",seed,"\n")
     }
-    if (rng == 1) {
-        invisible(initRNGstreamNodeRepli(seed=seed, n=n))
-    } else {
-	invisible(checkSPRNG(prngkind=prngkind))
-    }
+	invisible(initRNGstreamNodeRepli(seed=seed, n=n))
   } else {
     if (ft_verbose) 
         cat("   no RNG initialized\n")
@@ -341,11 +337,11 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
 			    mngtfiles=c(".clustersize",".proc",".proc_fail"),
                             ft_verbose=FALSE, ...) {
 
-  RNGnames <- c("RNGstream", "SPRNG", "None")
+  RNGnames <- c("RNGstream",  "None")
   rng <- pmatch (gentype, RNGnames)
   if (is.na(rng))
     stop(paste("'", gentype,
-               "' is not a valid choice. Choose 'RNGstream', 'SPRNG' or 'None'.",
+               "' is not a valid choice. Choose 'RNGstream' or 'None'.",
                sep = ""))
 
   gentype <- RNGnames[rng]
@@ -411,11 +407,11 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
 }
 
 clusterSetupRNG.FT <- function (cl, type="RNGstream", streamper="replicate", ...) {
-  RNGnames <- c("RNGstream", "SPRNG")
+  RNGnames <- c("RNGstream")
   rng <- pmatch (type, RNGnames)
   if (is.na(rng))
     stop(paste("'", type,
-               "' is not a valid choice. Choose 'RNGstream' or 'SPRNG'.",
+               "' is not a valid choice. Currently only 'RNGstream' is supported.",
                sep = ""))
   modus <- c("node", "replicate")
   stream <- pmatch(streamper,modus)
@@ -425,53 +421,14 @@ clusterSetupRNG.FT <- function (cl, type="RNGstream", streamper="replicate", ...
                modus[2],"'.", sep = ""))
   type <- RNGnames[rng]
   streamper <- modus[stream]
-  if (rng == 1) {
-    switch (streamper,
+
+	switch (streamper,
             cluster = clusterSetupRNGstream(cl, ...),
             replicate = clusterSetupRNGstreamRepli(cl, ...)
             )
-  } else {
-    switch (streamper,
-            cluster = clusterSetupSPRNG(cl, ...),
-            replicate = clusterCheckSPRNG (cl, ...)
-            )
-  }
   c(type,streamper)
 }
 
-
-#
-# Cluster SPRNG Support 
-#
-
-clusterCheckSPRNG <- function (cl, prngkind = "default", ...) 
-{
-  # for purposes of reproducible results. Like clusterSetupSPRNG, but makes
-  # only a check,the initialization happens with each replication call
-  # in clusterApplyFT
-  checkSPRNG(prngkind, ...)
-  clusterCall(cl, checkSprngNode)
-}
-
-checkSPRNG <- function(prngkind = "default", ...) {
-#  if (! require(rsprng))
-#    stop("the `rsprng' package is needed for SPRNG support.")
-  if (!is.character(prngkind) || length(prngkind) > 1)
-    stop("'rngkind' must be a character string of length 1.")
-  if (!is.na(pmatch(prngkind, "default")))
-    prngkind <- "LFG"
-  prngnames <- c("LFG", "LCG", "LCG64", "CMRG", "MLFG", "PMLCG")
-  kind <- pmatch(prngkind, prngnames) - 1
-  if (is.na(kind))
-    stop(paste("'", prngkind, "' is not a valid choice", sep = ""))
-}
-
-checkSprngNode <- function () 
-{
-  if (! require(rsprng))
-    stop("the `rsprng' package is needed for SPRNG support.")
-  RNGkind("user")
-}
 
 #
 # rlecuyer support
@@ -480,8 +437,8 @@ checkSprngNode <- function ()
 
 clusterSetupRNGstreamRepli <- function (cl, seed=rep(12345,6), n, ...){
   # creates on all nodes one stream per replication.  
-    if (! require(rlecuyer))
-        stop("the `rlecuyer' package is needed for RNGstream support.")
+    #if (! require(rlecuyer))
+    #    stop("the `rlecuyer' package is needed for RNGstream support.")
     .lec.init()
     .lec.SetPackageSeed(seed)
     nc <- length(cl)
@@ -495,8 +452,8 @@ clusterSetupRNGstreamRepli <- function (cl, seed=rep(12345,6), n, ...){
   }
 
 initRNGstreamNodeRepli <- function (seed, n) {
-    if (! require(rlecuyer))
-        stop("the `rlecuyer' package is needed for RNGstream support.") 
+    #if (! require(rlecuyer))
+    #    stop("the `rlecuyer' package is needed for RNGstream support.") 
     .lec.init()
     .lec.SetPackageSeed(seed)
     names <- as.character(1:n)
@@ -505,18 +462,12 @@ initRNGstreamNodeRepli <- function (seed, n) {
   }
 
 initStream <- function (type="RNGstream", name, ...) {
-  oldrng <- switch(type,
-                   RNGstream = .lec.CurrentStream(name),
-                   SPRNG = initSprngNode(...)
-                   )
+  oldrng <- .lec.CurrentStream(name)
   return(oldrng)
 }
 
 freeStream <- function (type="RNGstream", oldrng) {
-  switch(type,
-         RNGstream = .lec.CurrentStreamEnd(oldrng),
-         SPRNG = free.sprng()
-         )
+	.lec.CurrentStreamEnd(oldrng)
 }
 
 resetRNG <- function(cl, nodes, repl, gentype="RNGstream",seed=rep(123456,6))
@@ -528,7 +479,7 @@ resetRNG <- function(cl, nodes, repl, gentype="RNGstream",seed=rep(123456,6))
                            c(list(seed),list(repl))))
       invisible(lapply(cl[nodes], recvResult))
     } else {
-      clusterCallpart(cl, nodes, checkSprngNode)
+      stop('Wrong gentype. Only "RNGstream" is currently supported.')
     }
   }
 
@@ -611,7 +562,7 @@ manage.replications.and.cluster.size <- function(cl, clall, p, n, manage, mngtfi
     cluster.increased <- FALSE
     if (newp > p) { # increase the degree of parallelism
     	cl<-addtoCluster(cl, newp-p)
-    	clusterEvalQpart(cl,(p+1):newp,require(snowFT))
+    	clusterEvalQpart(cl,(p+1):newp, library(snowFT))
         if(ft_verbose)
             printClusterInfo(cl)
        if (!is.null(initfun))
