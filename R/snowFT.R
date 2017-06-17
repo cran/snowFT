@@ -75,15 +75,26 @@ makeClusterFT <- function(spec, type = getClusterOption("type"), names=NULL,
     return(cl)
 }
 
+stopClusterFT <- function(cl) parallel::stopCluster(cl)
+
 clusterCallpart  <- function(cl, nodes, fun, ...) {
     for (i in seq(along = nodes))
         sendCall(cl[[nodes[i]]], fun, list(...))
-    lapply(cl[nodes], recvResult)
+    checkForRemoteErrors(lapply(cl[nodes], recvResult))
 }
 
 clusterEvalQpart <- function(cl, nodes, expr)
     clusterCallpart(cl, nodes, eval, substitute(expr), env=.GlobalEnv)
 
+clusterExportpart <- local({ # taken from snow; modified so that it runs onlu for given nodes 
+    env <- as.environment(1) ## .GlobalEnv
+    gets <- function(n, v) { assign(n, v, envir = env); NULL }
+    function(cl = NULL, nodes, varlist, envir = .GlobalEnv) {
+        for (name in varlist) {
+            clusterCallpart(cl, nodes, gets, name, get(name, envir = envir))
+        }
+    }
+})
 
 recvOneResultFT <- function(cl,type='b',time=0) {
 	if (('snow'%:::%'.snowTimingData')$running()) {
@@ -96,7 +107,9 @@ recvOneResultFT <- function(cl,type='b',time=0) {
     return(list(value = v$value$value, node=v$node, tag = v$value$tag))
 }
 
-clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
+clusterApplyFT <- function(cl, x, fun, initfun = NULL, 
+                             initexpr = NULL, export = NULL,
+                             exitfun=NULL,
                              printfun=NULL, printargs=NULL,
                              printrepl=max(length(x)/10,1),
                              gentype="None", seed=rep(123456,6),
@@ -123,7 +136,6 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
 #  - efficient administration - all the management work is done only
 #                 when there is no message arrived and thus nothing
 #                 else to do.
-
 	if (all(is.na(pmatch(attr(cl,"class"), c(#"PVMcluster", 
 							"MPIcluster", "SOCKcluster"))))) {
     	cat("\nInvalid communication layer.\n")
@@ -140,9 +152,8 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
   	gennames <- c("RNGstream", "None")
   	gen <- pmatch(gentype,gennames)
   	if (is.na(gen))
-    	stop(paste("'", gentype,
-               "' is not a valid choice. Choose 'RNGstream' or 'None'.",
-               sep = ""))
+    	stop(paste0("'", gentype,
+               "' is not a valid choice. Choose 'RNGstream' or 'None'."))
   	gentype <- gennames[gen]
 
   	lmng <- length(mngtfiles)
@@ -181,7 +192,7 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
     	submit <- function(node, job, n, gentype, seed, prngkind) {
       		args <- c(list(x[[job]]), list(job), list(n), list(gentype),
                 list(seed),list(prngkind),list(...))
-      		sendCall(cl[[node]], wrap, args)
+      		sendCall(cl[[node]], wrap, args, tag = job)
     	}
 
     	val <- vector("list", n)
@@ -219,8 +230,8 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
                                         # or wait for remaining results
           			d <- recvOneResultFT(clall,'n') # look if there is any result
           			admin <- do.administration(cl, clall, d, p, it, n, manage, mngtfiles, 
-									x, frep, freenodes, initfun, 
-									gentype, seed, ft_verbose)
+									x, frep, freenodes, initfun=initfun, initexpr=initexpr, export=export,
+									gentype=gentype, seed=seed, ft_verbose=ft_verbose)
 					cl <- admin$cl
 					clall <- admin$clall
 					d <- admin$d
@@ -268,7 +279,8 @@ clusterApplyFT <- function(cl, x, fun, initfun = NULL, exitfun=NULL,
   	return(list(val,cl))
 }
 
-performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
+performSequential <- function (x, fun, initfun = NULL, initexpr = NULL,
+							exitfun = NULL,
                             printfun=NULL,printargs=NULL,
                             printrepl=max(length(x)/10,1),
                             cltype = getClusterOption("type"),
@@ -291,14 +303,18 @@ performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
         cat("   calling initfun ...\n")
     initfun()
   }
-
+  if (!is.null(initexpr)) {
+    if (ft_verbose) 
+		cat("   evaluating initial expression ...\n")
+   eval(initexpr)
+  }
   if (RNGnames[rng] != "None") {
     if (ft_verbose) { 
         cat("   initializing RNG ...\n")
 		cat("     gentype:",gentype,"\n")
         cat("     seed:   ",seed,"\n")
     }
-	invisible(initRNGstreamNodeRepli(seed=seed, n=n))
+	initRNGstreamNodeRepli(seed=seed, n=n)
   } else {
     if (ft_verbose) 
         cat("   no RNG initialized\n")
@@ -333,8 +349,9 @@ performSequential <- function (x, fun, initfun = NULL, exitfun =NULL,
   return(results)
 }
 
-performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
-                            printfun=NULL,printargs=NULL,
+performParallel <- function(count, x, fun, initfun = NULL, 
+							initexpr = NULL, export = NULL,
+                            exitfun =NULL, printfun=NULL, printargs=NULL,
                             printrepl=max(length(x)/10,1),
                             cltype = getClusterOption("type"),
                             cluster.args=NULL,
@@ -342,7 +359,6 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
                             prngkind="default", para=0, 
 			    mngtfiles=c(".clustersize",".proc",".proc_fail"),
                             ft_verbose=FALSE, ...) {
-
   RNGnames <- c("RNGstream",  "None")
   rng <- pmatch (gentype, RNGnames)
   if (is.na(rng))
@@ -351,9 +367,10 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
                sep = ""))
 
   gentype <- RNGnames[rng]
-
   if (count == 0) { # run a sequential version of the code
-     return (performSequential(x, fun, initfun = initfun, exitfun = exitfun,
+     return (performSequential(x, fun, initfun = initfun, 
+     						initexpr = initexpr,
+     						exitfun = exitfun,
                             printfun=printfun, printargs=printargs,
                             printrepl=printrepl,
                             gentype=gentype, seed=seed,
@@ -374,10 +391,20 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
 
   if (!is.null(initfun)) {
     if (ft_verbose) 
-	cat("   calling initfun ...\n")
+		cat("   calling initfun ...\n")
     clusterCall(cl, initfun)
   }
-
+  if (!is.null(initexpr)) {
+    if (ft_verbose) 
+		cat("   evaluating initial expression ...\n")
+	clusterCall(cl, eval, substitute(initexpr), env=.GlobalEnv)
+	initexpr <- deparse(substitute(initexpr)) # convert to character to pass it around
+  }
+	if(!is.null(export)) {
+		if (ft_verbose) 
+			cat("   exporting ", paste(export, collapse=", "), "...\n")
+		clusterExport(cl, export)
+	}
   if (RNGnames[rng] != "None") {
     if (ft_verbose) 
 	cat("   initializing RNG ...\n")
@@ -390,7 +417,8 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
   if (ft_verbose) 
      cat("   calling clusterApplyFT ...\n")
  
-  res <- clusterApplyFT (cl, x, fun, initfun=initfun, exitfun=exitfun,
+  res <- clusterApplyFT (cl, x, fun, initfun=initfun, initexpr=initexpr,
+                           export=export, exitfun=exitfun,
                            printfun=printfun, printargs=printargs,
                            printrepl=printrepl, gentype=gentype,
                            seed=seed, prngkind=prngkind,
@@ -406,7 +434,7 @@ performParallel <- function(count, x, fun, initfun = NULL, exitfun =NULL,
 	cat("   calling exitfun ...\n")
      clusterCall(cl, exitfun)
   }
-  stopCluster(cl)
+  stopClusterFT(cl)
   if (ft_verbose) 
      cat("   cluster stopped.\n")
   return(checkForRemoteErrors(val))
@@ -458,8 +486,7 @@ clusterSetupRNGstreamRepli <- function (cl, seed=rep(12345,6), n, ...){
   }
 
 initRNGstreamNodeRepli <- function (seed, n) {
-    #if (! require(rlecuyer))
-    #    stop("the `rlecuyer' package is needed for RNGstream support.") 
+    if(length(seed) == 1) seed <- seed:(seed+5) # extend seed to be of length 6
     .lec.init()
     .lec.SetPackageSeed(seed)
     names <- as.character(1:n)
@@ -468,8 +495,7 @@ initRNGstreamNodeRepli <- function (seed, n) {
   }
 
 initStream <- function (type="RNGstream", name, ...) {
-  oldrng <- .lec.CurrentStream(name)
-  return(oldrng)
+  .lec.CurrentStream(name)
 }
 
 freeStream <- function (type="RNGstream", oldrng) {
@@ -558,21 +584,26 @@ writetomngtfile <- function(cl, file) {
 }
 
 manage.replications.and.cluster.size <- function(cl, clall, p, n, manage, mngtfiles, 
-									freenodes, initfun, gentype, seed, ft_verbose=FALSE) {
-	newp <- if (manage['cluster.size']) 
-				scan(file=mngtfiles[1],what=integer(),nlines=1, quiet=TRUE) 
-			else p
+									freenodes, initfun=NULL, initexpr=NULL, export=NULL, gentype="None", 
+									seed=1, ft_verbose=FALSE, ...) {
+    newp <- p
+    if (manage['cluster.size']) {
+        p.fromfile <- try(as.integer(scan(file=mngtfiles[1],what=integer(),nlines=1, quiet=TRUE)))
+        if(length(p.fromfile) == 1) newp <- p.fromfile
+    }
 	if (manage['monitor.procs'])
   		# write the currently processed replications into a file 
         writetomngtfile(cl,mngtfiles[2])
     cluster.increased <- FALSE
-    if (newp > p) { # increase the degree of parallelism
+    if (newp > p) { # increase the cluster size
     	cl<-addtoCluster(cl, newp-p)
     	clusterEvalQpart(cl,(p+1):newp, library(snowFT))
-        if(ft_verbose)
-            printClusterInfo(cl)
+        if(ft_verbose) printClusterInfo(cl)
        if (!is.null(initfun))
         	clusterCallpart(cl,(p+1):newp,initfun)
+       if (!is.null(initexpr)) 
+    	   clusterCallpart(cl,(p+1):newp, eval, parse(text=initexpr), env=.GlobalEnv)
+        if(!is.null(export)) clusterExportpart(cl, (p+1):newp, export)
        if (gentype != "None")
         	resetRNG(cl,(p+1):newp,n,gentype,seed)
         clall<-combinecl(clall,cl[(p+1):newp])
